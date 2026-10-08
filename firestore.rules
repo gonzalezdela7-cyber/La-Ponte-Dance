@@ -1,0 +1,182 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Validation Blueprint for ChatSession (/sessions/{sessionId})
+    function isValidChatSession(data) {
+      return data.keys().hasAll(['ownerId', 'topic', 'summary', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'topic', 'summary', 'status', 'createdAt', 'updatedAt'])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.topic is string
+        && data.topic.size() >= 1
+        && data.topic.size() <= 120
+        && data.summary is string
+        && data.summary.size() >= 1
+        && data.summary.size() <= 500
+        && data.status is string
+        && (data.status == 'active' || data.status == 'archived')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint for TrialBooking (/trialBookings/{bookingId})
+    function isValidTrialBooking(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'studentName',
+          'studentPhone',
+          'ageGroup',
+          'activity',
+          'preferredDate',
+          'preferredTime',
+          'calendarEventId',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'studentName',
+          'studentPhone',
+          'ageGroup',
+          'activity',
+          'preferredDate',
+          'preferredTime',
+          'calendarEventId',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.studentName is string
+        && data.studentName.size() >= 1
+        && data.studentName.size() <= 120
+        && data.studentPhone is string
+        && data.studentPhone.size() >= 6
+        && data.studentPhone.size() <= 40
+        && data.ageGroup is string
+        && data.ageGroup.size() >= 1
+        && data.ageGroup.size() <= 120
+        && data.activity is string
+        && data.activity.size() >= 1
+        && data.activity.size() <= 120
+        && data.preferredDate is string
+        && data.preferredDate.size() >= 8
+        && data.preferredDate.size() <= 20
+        && data.preferredTime is string
+        && data.preferredTime.size() >= 4
+        && data.preferredTime.size() <= 20
+        && data.calendarEventId is string
+        && data.calendarEventId.size() >= 1
+        && data.calendarEventId.size() <= 200
+        && data.status is string
+        && (data.status == 'confirmed' || data.status == 'cancelled')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /sessions/{sessionId} {
+      allow get: if isVerified()
+        && isValidId(sessionId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isVerified()
+        && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isVerified()
+        && isValidId(sessionId)
+        && isValidChatSession(incoming())
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerified()
+        && isValidId(sessionId)
+        && isValidChatSession(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && existing().status != 'archived'
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Edit summary or topic while active
+          (incoming().status == 'active' && incoming().diff(existing()).affectedKeys().hasOnly(['topic', 'summary', 'updatedAt'])) ||
+          // Action: Archive session (terminal state transition)
+          (incoming().status == 'archived' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+        );
+
+      allow delete: if isVerified()
+        && isValidId(sessionId)
+        && existing().ownerId == request.auth.uid;
+    }
+
+    match /trialBookings/{bookingId} {
+      allow get: if isVerified()
+        && isValidId(bookingId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isVerified()
+        && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isVerified()
+        && isValidId(bookingId)
+        && isValidTrialBooking(incoming())
+        && incoming().status == 'confirmed'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerified()
+        && isValidId(bookingId)
+        && isValidTrialBooking(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && existing().status != 'cancelled'
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Reschedule date/time/calendarEventId while confirmed
+          (incoming().status == 'confirmed' && incoming().diff(existing()).affectedKeys().hasOnly(['preferredDate', 'preferredTime', 'calendarEventId', 'updatedAt'])) ||
+          // Action: Cancel trial booking (terminal state transition)
+          (incoming().status == 'cancelled' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+        );
+
+      allow delete: if isVerified()
+        && isValidId(bookingId)
+        && existing().ownerId == request.auth.uid;
+    }
+  }
+}

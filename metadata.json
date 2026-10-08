@@ -1,0 +1,6 @@
+{
+  "name": "La Ponte Dance — Ecosistema Digital",
+  "description": "Web oficial, calculadora de presupuestos y asistente informativo de La Ponte Dance en Torrijos, Toledo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Saved orientation session or personal dance consultation note created by an authenticated user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the authenticated user who owns this session.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "topic": {
+          "type": "string",
+          "description": "Topic of the orientation query (e.g., Edades, Clases, Presupuesto).",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "summary": {
+          "type": "string",
+          "description": "Summary of the orientation or calculation saved by the user.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "description": "Session lifecycle status.",
+          "enum": ["active", "archived"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the session was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the session was last updated."
+        }
+      },
+      "required": ["ownerId", "topic", "summary", "status", "createdAt", "updatedAt"]
+    },
+    "TrialBooking": {
+      "title": "TrialBooking",
+      "description": "Free trial dance class booking synchronized with Google Calendar and La Ponte Dance.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the authenticated user who booked the trial class.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Full name of the student attending the trial class.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "studentPhone": {
+          "type": "string",
+          "description": "Contact phone or WhatsApp number.",
+          "minLength": 6,
+          "maxLength": 40
+        },
+        "ageGroup": {
+          "type": "string",
+          "description": "Selected age group (Niños, Jóvenes, Adultos, Parejas).",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "activity": {
+          "type": "string",
+          "description": "Selected orientative dance activity.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "preferredDate": {
+          "type": "string",
+          "description": "Date of the trial class in YYYY-MM-DD format.",
+          "minLength": 8,
+          "maxLength": 20
+        },
+        "preferredTime": {
+          "type": "string",
+          "description": "Time slot of the trial class in HH:MM format.",
+          "minLength": 4,
+          "maxLength": 20
+        },
+        "calendarEventId": {
+          "type": "string",
+          "description": "Google Calendar event ID returned on synchronization.",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "status": {
+          "type": "string",
+          "description": "Booking status.",
+          "enum": ["confirmed", "cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the booking was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the booking was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "studentName",
+        "studentPhone",
+        "ageGroup",
+        "activity",
+        "preferredDate",
+        "preferredTime",
+        "calendarEventId",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/sessions/{sessionId}": {
+      "schema": "ChatSession",
+      "description": "Stores user-owned chatbot orientation and dance calculation sessions."
+    },
+    "/trialBookings/{bookingId}": {
+      "schema": "TrialBooking",
+      "description": "Stores user-owned free trial class bookings synchronized with Google Calendar."
+    }
+  }
+}
